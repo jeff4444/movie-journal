@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,26 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
   const [comments, setComments] = useState("")
   const [customTitle, setCustomTitle] = useState("")
   const [customOverview, setCustomOverview] = useState("")
+
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    if (!searchQuery.trim()) return
+
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current)
+    }
+
+    searchTimeout.current = setTimeout(() => {
+      searchMovies()
+    }, 500) // adjust the delay as needed (500ms here)
+
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current)
+      }
+    }
+  }, [searchQuery])
 
   const searchMovies = async () => {
     if (!searchQuery.trim()) return
@@ -118,7 +138,6 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
                 placeholder="Search for a movie..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && searchMovies()}
               />
               <Button onClick={searchMovies} disabled={isSearching}>
                 {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}

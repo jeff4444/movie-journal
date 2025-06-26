@@ -13,10 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, Star, Sparkles, Trash2 } from "lucide-react";
 import { AddMovieDialog } from "@/components/add-movie-dialog";
 import { YearlySummary } from "@/components/yearly-summary";
+import { DeleteMovieDialog } from "@/components/delete-movie-dialog";
 import Image from "next/image";
 import { supabase } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 interface Movie {
   id: string;
@@ -29,14 +29,19 @@ interface Movie {
   tmdbId?: number;
 }
 
+interface GroupedMovies {
+  [year: string]: {
+    [month: string]: Movie[]
+  }
+}
+
 export default function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [showYearlySummary, setShowYearlySummary] = useState(false);
-  const [deletingMovieId, setDeletingMovieId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
+  const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
   const [user, setUser] = useState<any>(undefined);
+
   useEffect(() => {
     const fetchUser = async () => {
       const {
@@ -50,7 +55,7 @@ export default function HomePage() {
   useEffect(() => {
     if (user) {
       fetch(`/api/get-movies?user_id=${user.id}`)
-      .then((res) => res.json())
+        .then((res) => res.json())
         .then((data) => {
           setMovies(data);
         });
@@ -67,8 +72,6 @@ export default function HomePage() {
 
   if (user) {
     const addMovie = (movie: Movie) => {
-      const updatedMovies = [movie, ...movies];
-      setMovies(updatedMovies);
       fetch("/api/add-movie", {
         method: "POST",
         body: JSON.stringify({ movie, user_id: user.id }),
@@ -80,22 +83,22 @@ export default function HomePage() {
         .catch((err) => {
           console.error("Error adding movie", err);
         });
+      const updatedMovies = [movie, ...movies];
+      setMovies(updatedMovies);
     };
 
     const deleteMovie = async (movieId: string) => {
-      setDeletingMovieId(movieId);
       try {
         await fetch("/api/delete-movie", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ movie_id: movieId, user_id: user.id }),
         });
-        setMovies((prev) => prev.filter((m) => m.id !== movieId));
+        const updatedMovies = movies.filter((movie) => movie.id !== movieId);
+        setMovies(updatedMovies);
+        setMovieToDelete(null);
       } catch (err) {
         console.error("Error deleting movie", err);
-      } finally {
-        setDeletingMovieId(null);
-        setConfirmDeleteId(null);
       }
     };
 
@@ -109,6 +112,25 @@ export default function HomePage() {
         />
       ));
     };
+
+    // Group movies by year and month
+    const groupedMovies: GroupedMovies = movies.reduce((acc, movie) => {
+      const date = new Date(movie.watchedDate);
+      const year = date.getFullYear().toString();
+      const month = date.toLocaleDateString("en-US", { month: "long" });
+
+      if (!acc[year]) {
+        acc[year] = {};
+      }
+      if (!acc[year][month]) {
+        acc[year][month] = [];
+      }
+      acc[year][month].push(movie);
+      return acc;
+    }, {} as GroupedMovies);
+
+    // Sort years and months
+    const sortedYears = Object.keys(groupedMovies).sort((a, b) => Number.parseInt(b) - Number.parseInt(a));
 
     const currentYear = new Date().getFullYear();
     const currentYearMovies = movies.filter(
@@ -170,95 +192,115 @@ export default function HomePage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {movies.map((movie) => (
-                <Card
-                  key={movie.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow relative"
-                >
-                  <div className="relative">
-                    {movie.poster_path ? (
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                        alt={movie.title}
-                        width={500}
-                        height={750}
-                        className="w-full h-64 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                        <Calendar className="w-12 h-12 text-gray-400" />
-                      </div>
-                    )}
-                    <Badge className="absolute top-2 right-2 bg-black/70 text-white">
-                      {new Date(movie.watchedDate).toLocaleDateString()}
-                    </Badge>
-                    <AlertDialog open={confirmDeleteId === movie.id} onOpenChange={(open) => setConfirmDeleteId(open ? movie.id : null)}>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 left-2 z-10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDeleteId(movie.id);
-                          }}
-                          disabled={deletingMovieId === movie.id}
-                        >
-                          {deletingMovieId === movie.id ? (
-                            <span className="animate-spin"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Movie</AlertDialogTitle>
-                        </AlertDialogHeader>
-                        <p>Are you sure you want to delete "{movie.title}"? This action cannot be undone.</p>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </AlertDialogCancel>
-                          <AlertDialogAction asChild>
-                            <Button
-                              variant="destructive"
-                              onClick={() => deleteMovie(movie.id)}
-                              disabled={deletingMovieId === movie.id}
-                            >
-                              {deletingMovieId === movie.id ? "Deleting..." : "Delete"}
-                            </Button>
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="line-clamp-1">
-                      {movie.title}
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <div className="flex">{renderStars(movie.rating)}</div>
-                      <span className="text-sm text-gray-500">
-                        ({movie.rating}/5)
-                      </span>
+            <div className="space-y-8">
+              {sortedYears.map((year) => {
+                const monthsInYear = groupedMovies[year];
+                const sortedMonths = Object.keys(monthsInYear).sort((a, b) => {
+                  const monthOrder = [
+                    "January",
+                    "February",
+                    "March",
+                    "April",
+                    "May",
+                    "June",
+                    "July",
+                    "August",
+                    "September",
+                    "October",
+                    "November",
+                    "December",
+                  ];
+                  return monthOrder.indexOf(b) - monthOrder.indexOf(a);
+                });
+
+                return (
+                  <div key={year} className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-3xl font-bold text-gray-800">{year}</h2>
+                      <div className="flex-1 h-px bg-gradient-to-r from-gray-300 to-transparent"></div>
+                      <Badge variant="secondary" className="text-sm">
+                        {Object.values(monthsInYear).flat().length} movies
+                      </Badge>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="line-clamp-3 mb-3">
-                      {movie.overview}
-                    </CardDescription>
-                    {movie.comments && (
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-sm text-blue-800 italic">
-                          "{movie.comments}"
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+
+                    {sortedMonths.map((month) => {
+                      const moviesInMonth = monthsInYear[month].sort(
+                        (a, b) => new Date(b.watchedDate).getTime() - new Date(a.watchedDate).getTime(),
+                      );
+
+                      return (
+                        <div key={`${year}-${month}`} className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-semibold text-gray-700">{month}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {moviesInMonth.length} {moviesInMonth.length === 1 ? "movie" : "movies"}
+                            </Badge>
+                          </div>
+
+                          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {moviesInMonth.map((movie) => (
+                              <Card
+                                key={movie.id}
+                                className="overflow-hidden hover:shadow-lg transition-shadow group"
+                              >
+                                <div className="relative">
+                                  {movie.poster_path ? (
+                                    <Image
+                                      src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                                      alt={movie.title}
+                                      width={500}
+                                      height={750}
+                                      className="w-full h-64 object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                                      <Calendar className="w-12 h-12 text-gray-400" />
+                                    </div>
+                                  )}
+                                  <Badge className="absolute top-2 right-2 bg-black/70 text-white">
+                                    {new Date(movie.watchedDate).toLocaleDateString()}
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                                    onClick={() => setMovieToDelete(movie)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <CardHeader>
+                                  <CardTitle className="line-clamp-1">
+                                    {movie.title}
+                                  </CardTitle>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex">{renderStars(movie.rating)}</div>
+                                    <span className="text-sm text-gray-500">
+                                      ({movie.rating}/5)
+                                    </span>
+                                  </div>
+                                </CardHeader>
+                                <CardContent>
+                                  <CardDescription className="line-clamp-3 mb-3">
+                                    {movie.overview}
+                                  </CardDescription>
+                                  {movie.comments && (
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                      <p className="text-sm text-blue-800 italic">
+                                        "{movie.comments}"
+                                      </p>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -273,6 +315,13 @@ export default function HomePage() {
             onOpenChange={setShowYearlySummary}
             movies={currentYearMovies}
             year={currentYear}
+          />
+
+          <DeleteMovieDialog
+            movie={movieToDelete}
+            open={!!movieToDelete}
+            onOpenChange={(open) => !open && setMovieToDelete(null)}
+            onConfirmDelete={deleteMovie}
           />
         </div>
       </div>

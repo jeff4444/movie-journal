@@ -10,12 +10,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Star, Sparkles } from "lucide-react";
+import { Plus, Calendar, Star, Sparkles, Trash2 } from "lucide-react";
 import { AddMovieDialog } from "@/components/add-movie-dialog";
 import { YearlySummary } from "@/components/yearly-summary";
 import Image from "next/image";
 import { supabase } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 interface Movie {
   id: string;
@@ -32,6 +33,8 @@ export default function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [showYearlySummary, setShowYearlySummary] = useState(false);
+  const [deletingMovieId, setDeletingMovieId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const [user, setUser] = useState<any>(undefined);
   useEffect(() => {
@@ -77,6 +80,23 @@ export default function HomePage() {
         .catch((err) => {
           console.error("Error adding movie", err);
         });
+    };
+
+    const deleteMovie = async (movieId: string) => {
+      setDeletingMovieId(movieId);
+      try {
+        await fetch("/api/delete-movie", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ movie_id: movieId, user_id: user.id }),
+        });
+        setMovies((prev) => prev.filter((m) => m.id !== movieId));
+      } catch (err) {
+        console.error("Error deleting movie", err);
+      } finally {
+        setDeletingMovieId(null);
+        setConfirmDeleteId(null);
+      }
     };
 
     const renderStars = (rating: number) => {
@@ -154,7 +174,7 @@ export default function HomePage() {
               {movies.map((movie) => (
                 <Card
                   key={movie.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow"
+                  className="overflow-hidden hover:shadow-lg transition-shadow relative"
                 >
                   <div className="relative">
                     {movie.poster_path ? (
@@ -173,6 +193,46 @@ export default function HomePage() {
                     <Badge className="absolute top-2 right-2 bg-black/70 text-white">
                       {new Date(movie.watchedDate).toLocaleDateString()}
                     </Badge>
+                    <AlertDialog open={confirmDeleteId === movie.id} onOpenChange={(open) => setConfirmDeleteId(open ? movie.id : null)}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 left-2 z-10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(movie.id);
+                          }}
+                          disabled={deletingMovieId === movie.id}
+                        >
+                          {deletingMovieId === movie.id ? (
+                            <span className="animate-spin"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Movie</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <p>Are you sure you want to delete "{movie.title}"? This action cannot be undone.</p>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </AlertDialogCancel>
+                          <AlertDialogAction asChild>
+                            <Button
+                              variant="destructive"
+                              onClick={() => deleteMovie(movie.id)}
+                              disabled={deletingMovieId === movie.id}
+                            >
+                              {deletingMovieId === movie.id ? "Deleting..." : "Delete"}
+                            </Button>
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <CardHeader>
                     <CardTitle className="line-clamp-1">

@@ -75,7 +75,5 @@ export async function signInWithGoogle() {
     redirect("/error");
   }
 
-  console.log("data", data)
-
-  redirect("/");
+  redirect(data.url);
 }

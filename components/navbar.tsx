@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LogOut } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { redirect } from "next/navigation"
 
 export function Navbar() {
   const [user, setUser] = useState<any>(null);
@@ -83,7 +84,10 @@ export function Navbar() {
               </div>
             </div>
             <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onClick={() => supabase.auth.signOut()}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => {
+                  supabase.auth.signOut()
+                  redirect("/signin")
+                }}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sign out</span>
             </DropdownMenuItem>

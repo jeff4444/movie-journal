@@ -11,7 +11,7 @@ import { Star, Search, Loader2 } from "lucide-react"
 import Image from "next/image"
 
 
-interface Movie {
+export interface Movie {
   id: string
   title: string
   poster_path?: string

@@ -10,8 +10,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Star, Search, Loader2 } from "lucide-react"
 import Image from "next/image"
 
-const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY
-
 
 interface Movie {
   id: string
@@ -48,13 +46,10 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
       // Using a public TMDB API key for demo purposes
       // In production, this should be handled server-side
       const response = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(searchQuery)}`,
+        `/api/search_movies?query=${encodeURIComponent(searchQuery)}`,
       )
 
       const data = await response.json()
-      console.log("data", data)
-      console.log(data.results)
-      console.log("TMDB_API_KEY", TMDB_API_KEY)
       setSearchResults(data.results)
 
     } catch (error) {

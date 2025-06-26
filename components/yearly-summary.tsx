@@ -53,34 +53,14 @@ export function YearlySummary({ open, onOpenChange, movies, year }: YearlySummar
         monthCounts[Number.parseInt(a[0])] > monthCounts[Number.parseInt(b[0])] ? a : b,
       )[0]
 
-      const monthNames = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ]
+      const generatedSummary = await fetch("/api/generate-summary", {
+        method: "POST",
+        body: JSON.stringify({ movies, year, peakMonth, avgRating, topRatedMovie }),
+      })
+      const data = await generatedSummary.json()
+      console.log("data", data)
 
-      const generatedSummary = `🎬 Your ${year} Movie Journey
-
-What a cinematic year you've had! You watched ${totalMovies} movies with an average rating of ${avgRating.toFixed(1)} stars. 
-
-🌟 Your highest-rated film was "${topRatedMovie.title}" with ${topRatedMovie.rating} stars - clearly a standout experience that resonated with you!
-
-📅 ${monthNames[Number.parseInt(peakMonth)]} was your most active movie-watching month, showing your dedication to cinema during that time.
-
-🎭 Your viewing habits show a thoughtful approach to film selection, with ratings spanning the full spectrum. This suggests you're not afraid to explore different genres and take chances on new experiences.
-
-Keep building your cinematic journey - every movie adds to your unique story as a film enthusiast!`
-
-      setSummary(generatedSummary)
+      setSummary(data.summary)
     } catch (error) {
       console.error("Error generating summary:", error)
       setSummary("Sorry, there was an error generating your summary. Please try again.")

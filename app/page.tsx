@@ -8,6 +8,8 @@ import { Plus, Calendar, Star, Sparkles } from "lucide-react"
 import { AddMovieDialog } from "@/components/add-movie-dialog"
 import { YearlySummary } from "@/components/yearly-summary"
 import Image from "next/image"
+import { supabase } from "@/utils/supabase/client"
+import { redirect } from "next/navigation"
 
 interface Movie {
   id: string
@@ -25,12 +27,24 @@ export default function HomePage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [showYearlySummary, setShowYearlySummary] = useState(false)
 
+  const [user, setUser] = useState<any>(undefined);
   useEffect(() => {
-    const savedMovies = localStorage.getItem("watchedMovies")
-    if (savedMovies) {
-      setMovies(JSON.parse(savedMovies))
+        const fetchUser = async () => {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
+        };
+        fetchUser();
+    }, []);
+
+    if (user === undefined) {
+      return <div>Loading...</div>
     }
-  }, [])
+    
+    if (user === null) {
+      redirect("/signin");
+    }
 
   const addMovie = (movie: Movie) => {
     const updatedMovies = [movie, ...movies]

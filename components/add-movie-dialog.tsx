@@ -38,6 +38,7 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
   const [comments, setComments] = useState("")
   const [customTitle, setCustomTitle] = useState("")
   const [customOverview, setCustomOverview] = useState("")
+  const [watchedDateInput, setWatchedDateInput] = useState("")
 
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
@@ -109,7 +110,7 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
       overview: selectedMovie ? selectedMovie.overview : customOverview,
       rating,
       comments,
-      watchedDate: new Date().toISOString().split("T")[0],
+      watchedDate: watchedDateInput ? watchedDateInput : new Date().toISOString().split("T")[0],
       tmdbId: selectedMovie?.id,
       genres: genreNames,
     }
@@ -125,6 +126,7 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
     setComments("")
     setCustomTitle("")
     setCustomOverview("")
+    setWatchedDateInput("")
     onOpenChange(false)
   }
 
@@ -243,6 +245,15 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
                     onChange={(e) => setCustomOverview(e.target.value)}
                     placeholder="Enter movie summary"
                     rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="watchedDate">Watched Date</Label>
+                  <Input
+                    type="date"
+                    id="watchedDate"
+                    value={watchedDateInput}
+                    onChange={(e) => setWatchedDateInput(e.target.value)}
                   />
                 </div>
               </div>

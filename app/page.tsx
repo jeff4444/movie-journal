@@ -45,6 +45,10 @@ export default function HomePage() {
   const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
   const [user, setUser] = useState<any>(undefined);
 
+  const [searchTitle, setSearchTitle] = useState("");
+  const [searchMonth, setSearchMonth] = useState("");
+  const [searchYear, setSearchYear] = useState("");
+
   useEffect(() => {
     const fetchUser = async () => {
       const {
@@ -116,8 +120,18 @@ export default function HomePage() {
       ));
     };
 
+    const filteredMovies = movies.filter((movie) => {
+      const date = new Date(movie.watchedDate);
+      const year = date.getFullYear().toString();
+      const month = date.toLocaleDateString("en-US", { month: "long" });
+      const matchesTitle = movie.title.toLowerCase().includes(searchTitle.toLowerCase());
+      const matchesMonth = searchMonth ? month === searchMonth : true;
+      const matchesYear = searchYear ? year === searchYear : true;
+      return matchesTitle && matchesMonth && matchesYear;
+    });
+
     // Group movies by year and month
-    const groupedMovies: GroupedMovies = movies.reduce((acc, movie) => {
+    const groupedMovies: GroupedMovies = filteredMovies.reduce((acc, movie) => {
       const date = new Date(movie.watchedDate);
       const year = date.getFullYear().toString();
       const month = date.toLocaleDateString("en-US", { month: "long" });
@@ -136,13 +150,39 @@ export default function HomePage() {
     const sortedYears = Object.keys(groupedMovies).sort((a, b) => Number.parseInt(b) - Number.parseInt(a));
 
     const currentYear = new Date().getFullYear();
-    const currentYearMovies = movies.filter(
+    const currentYearMovies = filteredMovies.filter(
       (movie) => new Date(movie.watchedDate).getFullYear() === currentYear
     );
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
         <div className="max-w-6xl mx-auto">
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              type="text"
+              placeholder="Search title..."
+              value={searchTitle}
+              onChange={(e) => setSearchTitle(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded w-full"
+            />
+            <select
+              value={searchMonth}
+              onChange={(e) => setSearchMonth(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded w-full"
+            >
+              <option value="">All months</option>
+              {["January","February","March","April","May","June","July","August","September","October","November","December"].map((month) => (
+                <option key={month} value={month}>{month}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Search year..."
+              value={searchYear}
+              onChange={(e) => setSearchYear(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded w-full"
+            />
+          </div>
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -189,7 +229,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {movies.length === 0 ? (
+          {filteredMovies.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
                 <div className="text-gray-400 mb-4">

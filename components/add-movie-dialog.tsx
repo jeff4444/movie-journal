@@ -20,6 +20,7 @@ export interface Movie {
   comments: string
   watchedDate: string
   tmdbId?: number
+  genres: string[]
 }
 
 interface AddMovieDialogProps {
@@ -80,7 +81,27 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    let genreNames: string[] = []
+
+    if (selectedMovie !== null) {
+      try {
+        const response = await fetch("/api/get-genre-list")
+        const data = await response.json()
+        const genreMap = new Map<number, string>()
+        data.genres.forEach((genre: { id: number; name: string }) => {
+          genreMap.set(genre.id, genre.name)
+        })
+
+        if (selectedMovie.genre_ids && Array.isArray(selectedMovie.genre_ids)) {
+          genreNames = selectedMovie.genre_ids
+            .map((id: number) => genreMap.get(id))
+        }
+      } catch (error) {
+        console.error("Failed to fetch genres:", error)
+      }
+    }
+
     const movie: Movie = {
       id: Date.now().toString(),
       title: selectedMovie ? selectedMovie.title : customTitle,
@@ -90,7 +111,9 @@ export function AddMovieDialog({ open, onOpenChange, onAddMovie }: AddMovieDialo
       comments,
       watchedDate: new Date().toISOString().split("T")[0],
       tmdbId: selectedMovie?.id,
+      genres: genreNames,
     }
+
 
     onAddMovie(movie)
 

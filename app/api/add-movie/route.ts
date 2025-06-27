@@ -11,6 +11,8 @@ export async function POST(request: Request) {
     rating: movie.rating,
     comments: movie.comments,
     watched_date: movie.watchedDate,
+    tmdbId: movie.tmdbId,
+    genres: movie.genres,
     user_id: user_id,
   })
   if (error) {

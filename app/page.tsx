@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, Star, Sparkles, Trash2 } from "lucide-react";
 import { AddMovieDialog } from "@/components/add-movie-dialog";
-import { YearlySummary } from "@/components/yearly-summary";
+import { YearlySummary, computeSummaryData, SummaryData } from "@/components/yearly-summary";
 import { DeleteMovieDialog } from "@/components/delete-movie-dialog";
 import Image from "next/image";
 import { supabase } from "@/utils/supabase/client";
@@ -27,6 +27,7 @@ interface Movie {
   comments: string;
   watchedDate: string;
   tmdbId?: number;
+  genres: string[]
 }
 
 interface GroupedMovies {
@@ -39,6 +40,8 @@ export default function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [showYearlySummary, setShowYearlySummary] = useState(false);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
   const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
   const [user, setUser] = useState<any>(undefined);
 
@@ -152,11 +155,27 @@ export default function HomePage() {
             <div className="flex gap-3">
               {currentYearMovies.length > 0 && (
                 <Button
-                  onClick={() => setShowYearlySummary(true)}
+                  onClick={async () => {
+                    setIsSummaryLoading(true);
+                    try {
+                      const summaryData = await computeSummaryData(currentYearMovies, undefined, currentYear);
+                      setSummary(summaryData);
+                      setShowYearlySummary(true);
+                    } catch (err) {
+                      console.error("Error computing summary data", err);
+                    } finally {
+                      setIsSummaryLoading(false);
+                    }
+                  }}
                   variant="outline"
+                  disabled={isSummaryLoading}
                   className="bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600"
                 >
-                  <Sparkles className="w-4 h-4 mr-2" />
+                  {isSummaryLoading ? (
+                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
                   {currentYear} Summary
                 </Button>
               )}
@@ -312,9 +331,15 @@ export default function HomePage() {
 
           <YearlySummary
             open={showYearlySummary}
-            onOpenChange={setShowYearlySummary}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSummary(null);
+                setShowYearlySummary(false);
+              }
+            }}
             movies={currentYearMovies}
             year={currentYear}
+            summary={summary}
           />
 
           <DeleteMovieDialog
